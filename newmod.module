@@ -1,0 +1,92 @@
+<?php
+
+/**
+ * @file
+ * Contains newmod.module.
+ */
+
+use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\Component\Serialization\Json;
+use Drupal\taxonomy\Entity\Term;
+use Drupal\Core\Queue\QueueFactory;
+use Drupal\Core\Queue\QueueInterface;
+use Drupal\Core\Entity\EntityInterface;
+
+/**
+ * Implements hook_help().
+ */
+function newmod_help($route_name, RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    // Main module help for the newmod module.
+    case 'help.page.newmod':
+      $output = '';
+      $output .= '<h3>' . t('About') . '</h3>';
+      $output .= '<p>' . t('This module recieves json data from specific websites and creates taxonomy terms with relationships where the terms are unique. It also keeps track of the cron run status thus only allows website ping 5000 times an hour. ') . '</p>';
+      return $output;
+
+    default:
+  }
+}
+
+function newmod_cron () {
+		
+		$config= \Drupal::service('config.factory')->getEditable('newmod.settings');
+		$count = $config->get('count');
+		$time = $config->get('time');
+
+		if ($time == 0) {
+			$t= time();
+			$time= $t + 3600;
+			$config->set('time',$time);
+			$config->save();
+		}
+		
+		$t2 = time();
+		if ($t2> $time ) {
+			$t=0;
+			$count =0;
+			$config->set('time',$t);
+			$config->save();
+		}
+
+		$count++;
+		$config->set('count',$count);
+		$config->save();
+
+	if($count>5000) {
+		\Drupal::messenger()->addError('Request limit exceeded');
+	}
+
+	else {
+
+		try{
+			$request_username = 'KansasCity';
+			$request_password = '2cedb4fd-bf82-45ec-aa2b-093d053ede89';
+
+			$value=1;
+			$decoded_data=1;
+
+			while (!empty($decoded_data)) {
+
+				//Using HTTP Client
+				$client = \Drupal::httpClient();
+				$request = $client->get('https://api-mig.idss.com/api/category?page='.$value, [
+			  	'auth' => [$request_username, $request_password],     
+				]);
+			
+				$response = (string)$request->getBody();
+				$decoded_data = Json::decode($response);
+
+				$value++;
+
+				$queue_factory = \Drupal::service('queue');
+	  		$queue = $queue_factory->get('get_json');    		
+	   		$queue->createItem($decoded_data);
+   		}
+   	}
+		
+		catch (RequestException $e) {
+			\Drupal::messenger()->addError($e->getMessage());
+		}
+	}
+}

@@ -1,0 +1,6 @@
+name: 'newmod'
+type: module
+description: 'Module that gets json data from specific website and creates vocab terms with them'
+core: 8.x
+package: 'Custom'
+configure: newmod.admin_settings

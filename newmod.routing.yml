@@ -1,0 +1,7 @@
+newmod.admin_settings:
+  path: '/admin/config/newmod'
+  defaults:
+    _form: '\Drupal\newmod\Form\SettingsForm'
+    _title: 'newmod Cron Status'
+  requirements:
+    _permission: 'administer site configuration'
